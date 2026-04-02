@@ -1,35 +1,58 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
 
+// ── Icons ─────────────────────────────────────────────────────────────────────
+
+const IconPencil  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-2.828 1.172H7v-2a4 4 0 011.172-2.828z"/></svg>;
+const IconSearch  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>;
+const IconTrash   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a1 1 0 00-1-1h-4a1 1 0 00-1 1"/></svg>;
+const IconSend    = () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>;
+const IconMenu    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>;
+const IconGear    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>;
+
+// ── Message component ─────────────────────────────────────────────────────────
+
 function Message({ role, content }) {
   const isUser = role === "user";
-  return (
-    <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0 mt-0.5">M</div>
-      )}
-      <div className={`max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-        isUser
-          ? "bg-input text-white rounded-tr-sm"
-          : "bg-transparent text-gray-100 rounded-tl-sm"
-      }`}>
-        {isUser ? (
-          <p className="whitespace-pre-wrap">{content}</p>
-        ) : (
-          <div className="prose-chat">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
-          </div>
-        )}
+  if (isUser) {
+    return (
+      <div className="flex justify-end mb-6 px-4">
+        <div className="max-w-[70%] bg-input text-[#ececec] rounded-3xl px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap">
+          {content}
+        </div>
       </div>
-      {isUser && (
-        <div className="w-8 h-8 rounded-full bg-gray-600 flex items-center justify-center text-white font-bold text-sm shrink-0 mt-0.5">U</div>
-      )}
+    );
+  }
+  return (
+    <div className="flex gap-4 mb-6 px-4">
+      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0 mt-0.5">M</div>
+      <div className="flex-1 text-[#ececec] text-[15px] pt-0.5 prose-chat">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      </div>
     </div>
   );
 }
+
+// ── Typing indicator ──────────────────────────────────────────────────────────
+
+function TypingIndicator() {
+  return (
+    <div className="flex gap-4 mb-6 px-4">
+      <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0">M</div>
+      <div className="flex items-center gap-1 pt-2">
+        {[0,1,2].map(i => (
+          <span key={i} className="w-2 h-2 rounded-full bg-muted animate-bounce inline-block"
+            style={{ animationDelay: `${i * 0.18}s`, animationDuration: "0.9s" }}/>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
 
 export default function ChatPage({ user, onLogout }) {
   const [conversations, setConversations] = useState([]);
@@ -37,31 +60,30 @@ export default function ChatPage({ user, onLogout }) {
   const [messages,      setMessages]      = useState([]);
   const [input,         setInput]         = useState("");
   const [sending,       setSending]       = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [sidebarOpen,  setSidebarOpen]    = useState(true);
-  const bottomRef  = useRef(null);
-  const inputRef   = useRef(null);
+  const [showSettings,  setShowSettings]  = useState(false);
+  const [sidebarOpen,   setSidebarOpen]   = useState(true);
+  const [search,        setSearch]        = useState("");
+  const [searchOpen,    setSearchOpen]    = useState(false);
+
+  const bottomRef = useRef(null);
+  const inputRef  = useRef(null);
 
   useEffect(() => { loadConversations(); }, []);
-  useEffect(() => { if (activeId) loadMessages(activeId); }, [activeId]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, sending]);
 
   async function loadConversations() {
-    const res = await convsApi.list();
-    setConversations(res.data);
+    try { setConversations((await convsApi.list()).data); } catch {}
   }
-
   async function loadMessages(id) {
-    const res = await convsApi.messages(id);
-    setMessages(res.data);
+    try { setMessages((await convsApi.messages(id)).data); } catch {}
   }
 
   async function newConversation() {
-    const res = await convsApi.create({ title: "New conversation" });
-    setConversations(p => [res.data, ...p]);
-    setActiveId(res.data.id);
+    setActiveId(null);
     setMessages([]);
-    inputRef.current?.focus();
+    setInput("");
+    setTimeout(() => inputRef.current?.focus(), 50);
   }
 
   async function deleteConversation(id, e) {
@@ -73,150 +95,234 @@ export default function ChatPage({ user, onLogout }) {
 
   async function sendMessage() {
     if (!input.trim() || sending) return;
+    const text = input.trim();
     let convId = activeId;
 
-    // Auto-create conversation if none selected
     if (!convId) {
-      const res = await convsApi.create({ title: "New conversation" });
+      const res = await convsApi.create({ title: text.slice(0, 60) });
       convId = res.data.id;
       setConversations(p => [res.data, ...p]);
       setActiveId(convId);
     }
 
-    const userMsg = { role: "user", content: input.trim(), id: Date.now() };
-    setMessages(p => [...p, userMsg]);
+    setMessages(p => [...p, { id: Date.now(), role: "user", content: text }]);
     setInput("");
     setSending(true);
 
     try {
-      const res = await chatApi.send(convId, userMsg.content);
-      setMessages(p => [...p, { role: "assistant", content: res.data.reply, id: Date.now() + 1 }]);
-      // Refresh conversation list to update title
+      const res = await chatApi.send(convId, text);
+      setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: res.data.reply }]);
       loadConversations();
     } catch {
-      setMessages(p => [...p, { role: "assistant", content: "Sorry, something went wrong.", id: Date.now() + 1 }]);
+      setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: "Sorry, something went wrong." }]);
     } finally {
       setSending(false);
-      inputRef.current?.focus();
+      setTimeout(() => inputRef.current?.focus(), 50);
     }
   }
 
-  function handleKeyDown(e) {
+  function onKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   }
 
-  const activeConv = conversations.find(c => c.id === activeId);
+  function autoResize(e) {
+    e.target.style.height = "auto";
+    e.target.style.height = Math.min(e.target.scrollHeight, 200) + "px";
+  }
+
+  const filtered = conversations.filter(c =>
+    !search || c.title.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // Group conversations by date
+  function groupConversations(list) {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const yesterday = new Date(today); yesterday.setDate(today.getDate()-1);
+    const week = new Date(today); week.setDate(today.getDate()-7);
+    const groups = { Today: [], Yesterday: [], "Previous 7 days": [], Older: [] };
+    list.forEach(c => {
+      const d = new Date(c.updated_at || c.created_at); d.setHours(0,0,0,0);
+      if (d >= today)     groups["Today"].push(c);
+      else if (d >= yesterday) groups["Yesterday"].push(c);
+      else if (d >= week) groups["Previous 7 days"].push(c);
+      else                groups["Older"].push(c);
+    });
+    return groups;
+  }
+
+  const grouped = groupConversations(filtered);
 
   return (
-    <div className="flex h-screen bg-main text-white overflow-hidden">
-      {/* Sidebar */}
-      <aside className={`${sidebarOpen ? "w-64" : "w-0"} shrink-0 bg-sidebar flex flex-col transition-all duration-200 overflow-hidden`}>
-        {/* Sidebar header */}
-        <div className="p-3 border-b border-border">
-          <button onClick={newConversation}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl hover:bg-input transition text-sm font-medium text-gray-300 hover:text-white border border-border">
-            <span className="text-lg leading-none">✏️</span> New chat
-          </button>
-        </div>
+    <div className="flex h-screen bg-main overflow-hidden select-none">
 
-        {/* Conversations */}
-        <div className="flex-1 overflow-y-auto py-2 px-2 space-y-0.5">
-          {conversations.map(c => (
-            <div key={c.id} onClick={() => setActiveId(c.id)}
-              className={`group flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition text-sm ${
-                c.id === activeId ? "bg-input text-white" : "text-gray-400 hover:bg-input/60 hover:text-gray-200"
-              }`}>
-              <span className="flex-1 truncate">💬 {c.title}</span>
-              <button onClick={e => deleteConversation(c.id, e)}
-                className="opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition shrink-0 text-xs px-1">✕</button>
+      {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
+      <aside className={`${sidebarOpen ? "w-[260px]" : "w-0"} shrink-0 bg-sidebar flex flex-col transition-[width] duration-200 overflow-hidden`}>
+
+        {/* New chat + search */}
+        <div className="p-2 pt-3 space-y-0.5">
+          <button onClick={newConversation}
+            className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition group">
+            <div className="flex items-center gap-3">
+              <IconPencil/>
+              <span className="font-medium">New chat</span>
             </div>
-          ))}
-          {conversations.length === 0 && (
-            <p className="text-gray-600 text-xs text-center py-4 px-3">No conversations yet</p>
+          </button>
+          <button onClick={() => setSearchOpen(p => !p)}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition">
+            <IconSearch/>
+            <span>Search</span>
+          </button>
+          {searchOpen && (
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search conversations…"
+              className="w-full bg-white/8 text-sm text-[#ececec] placeholder-muted rounded-xl px-3 py-2 focus:outline-none"
+            />
           )}
         </div>
 
-        {/* Sidebar footer */}
-        <div className="p-3 border-t border-border space-y-1">
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto px-2 pb-2">
+          {Object.entries(grouped).map(([group, convs]) =>
+            convs.length === 0 ? null : (
+              <div key={group} className="mt-4">
+                <p className="px-3 mb-1 text-[11px] font-semibold text-muted uppercase tracking-wider">{group}</p>
+                {convs.map(c => (
+                  <div key={c.id} onClick={() => setActiveId(c.id)}
+                    className={`group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition text-[14px] ${
+                      c.id === activeId
+                        ? "bg-white/10 text-white"
+                        : "text-[#c5c5d2] hover:bg-white/8 hover:text-white"
+                    }`}>
+                    <span className="truncate flex-1">{c.title}</span>
+                    <button onClick={e => deleteConversation(c.id, e)}
+                      className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition shrink-0 ml-1 p-0.5">
+                      <IconTrash/>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+          {conversations.length === 0 && (
+            <p className="text-muted text-[13px] text-center mt-8 px-4">No conversations yet</p>
+          )}
+        </div>
+
+        {/* Bottom */}
+        <div className="p-2 border-t border-white/8">
           <button onClick={() => setShowSettings(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-input transition text-sm text-gray-400 hover:text-white">
-            ⚙️ Settings
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition">
+            <IconGear/>
+            <span>Settings</span>
           </button>
-          <div className="flex items-center justify-between px-3 py-2">
-            <span className="text-xs text-gray-500 truncate">{user.name}</span>
-            <button onClick={onLogout} className="text-xs text-gray-500 hover:text-white transition">Out</button>
+          <div className="flex items-center justify-between px-3 py-2.5 rounded-xl">
+            <div className="flex items-center gap-3">
+              <div className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-white text-xs font-bold">
+                {user.name[0].toUpperCase()}
+              </div>
+              <span className="text-[14px] text-[#c5c5d2] truncate max-w-[110px]">{user.name}</span>
+            </div>
+            <button onClick={onLogout} className="text-[13px] text-muted hover:text-white transition">Out</button>
           </div>
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Main area ────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
+
         {/* Top bar */}
-        <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+        <div className="flex items-center gap-2 px-4 py-3 shrink-0">
           <button onClick={() => setSidebarOpen(p => !p)}
-            className="text-gray-400 hover:text-white transition p-1 rounded-lg hover:bg-input">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
-            </svg>
+            className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8">
+            <IconMenu/>
           </button>
-          <span className="text-sm text-gray-400 truncate flex-1">{activeConv?.title || "MyGPT"}</span>
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm">M</div>
+          <span className="text-[15px] font-semibold text-[#ececec] ml-1">MyGPT</span>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="max-w-3xl mx-auto space-y-6">
-            {messages.length === 0 && (
-              <div className="text-center mt-20">
-                <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-3xl font-bold text-white mx-auto mb-4">M</div>
-                <h2 className="text-2xl font-bold text-white mb-2">How can I help you?</h2>
-                <p className="text-gray-400 text-sm">I have access to your Sprint Therapy, Notes and Binance data.</p>
-                <p className="text-gray-500 text-xs mt-1">Connect your apps and set your OpenAI key in <button onClick={() => setShowSettings(true)} className="text-accent underline">Settings</button>.</p>
-              </div>
-            )}
-            {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} />)}
-            {sending && (
-              <div className="flex gap-3 justify-start">
-                <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0">M</div>
-                <div className="flex items-center gap-1 px-4 py-3">
-                  {[0,1,2].map(i => (
-                    <div key={i} className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: `${i * 0.15}s` }}/>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div ref={bottomRef} />
-          </div>
-        </div>
-
-        {/* Input */}
-        <div className="px-4 py-4 border-t border-border shrink-0">
-          <div className="max-w-3xl mx-auto">
-            <div className="flex items-end gap-2 bg-input border border-border rounded-2xl px-4 py-3 focus-within:border-gray-500 transition">
-              <textarea
-                ref={inputRef}
+        {/* Messages or empty state */}
+        {messages.length === 0 && !sending ? (
+          /* ── Empty state ── */
+          <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+            <h1 className="text-[32px] font-semibold text-[#ececec] mb-10 tracking-tight">
+              Come posso aiutarti?
+            </h1>
+            {/* Centered input */}
+            <div className="w-full max-w-2xl">
+              <InputBox
+                inputRef={inputRef}
                 value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Message MyGPT…"
-                rows={1}
-                className="flex-1 bg-transparent text-white placeholder-gray-500 text-sm resize-none focus:outline-none max-h-40 leading-relaxed"
-                style={{ height: "auto" }}
-                onInput={e => { e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
+                onChange={e => { setInput(e.target.value); autoResize(e); }}
+                onKeyDown={onKeyDown}
+                onSend={sendMessage}
+                sending={sending}
+                centered
               />
-              <button onClick={sendMessage} disabled={sending || !input.trim()}
-                className="w-8 h-8 rounded-lg bg-accent hover:bg-accent/80 flex items-center justify-center transition disabled:opacity-40 shrink-0">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5"/>
-                </svg>
-              </button>
             </div>
-            <p className="text-center text-xs text-gray-600 mt-2">Enter to send · Shift+Enter for new line</p>
           </div>
-        </div>
+        ) : (
+          /* ── Chat view ── */
+          <>
+            <div className="flex-1 overflow-y-auto py-6">
+              <div className="max-w-3xl mx-auto">
+                {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content}/>)}
+                {sending && <TypingIndicator/>}
+                <div ref={bottomRef}/>
+              </div>
+            </div>
+
+            {/* Bottom input */}
+            <div className="px-4 pb-4 shrink-0">
+              <div className="max-w-3xl mx-auto">
+                <InputBox
+                  inputRef={inputRef}
+                  value={input}
+                  onChange={e => { setInput(e.target.value); autoResize(e); }}
+                  onKeyDown={onKeyDown}
+                  onSend={sendMessage}
+                  sending={sending}
+                />
+                <p className="text-center text-[12px] text-muted mt-2">
+                  Enter to send · Shift+Enter for new line
+                </p>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)}/>}
+    </div>
+  );
+}
+
+// ── Input box (reused in both empty and chat state) ───────────────────────────
+
+function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, centered }) {
+  return (
+    <div className={`relative bg-input rounded-[28px] flex items-end gap-2 px-4 py-3.5 border border-white/8 focus-within:border-white/20 transition ${centered ? "shadow-lg" : ""}`}>
+      <textarea
+        ref={inputRef}
+        value={value}
+        onChange={onChange}
+        onKeyDown={onKeyDown}
+        placeholder="Message MyGPT…"
+        rows={1}
+        className="flex-1 bg-transparent text-[15px] text-[#ececec] placeholder-muted resize-none focus:outline-none leading-6 max-h-[200px] py-0.5"
+      />
+      <button
+        onClick={onSend}
+        disabled={sending || !value.trim()}
+        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mb-0.5 transition ${
+          value.trim() && !sending
+            ? "bg-white text-black hover:bg-gray-200"
+            : "bg-white/15 text-muted cursor-not-allowed"
+        }`}
+      >
+        <IconSend/>
+      </button>
     </div>
   );
 }
