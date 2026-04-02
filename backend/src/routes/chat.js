@@ -1,6 +1,6 @@
 import { Router } from "express";
 import axios from "axios";
-import * as cheerio from "cheerio";
+// cheerio not needed — using regex parsing
 import OpenAI from "openai";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -9,29 +9,49 @@ const router = Router();
 
 // ── Web search via DuckDuckGo ─────────────────────────────────────────────────
 
+function decodeHtmlEntities(str) {
+  return str
+    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&nbsp;/g, " ")
+    .replace(/&#\d+;/g, m => String.fromCharCode(parseInt(m.slice(2,-1))))
+    .replace(/<[^>]+>/g, "").trim();
+}
+
 async function webSearch(query, maxResults = 10) {
   try {
     const { data: html } = await axios.get(
       `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
       {
         headers: {
-          "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120 Safari/537.36",
-          "Accept-Language": "en-US,en;q=0.9",
+          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml",
+          "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8",
         },
-        timeout: 10000,
+        timeout: 12000,
       }
     );
 
-    const $ = cheerio.load(html);
     const results = [];
 
-    $(".result").each((_, el) => {
-      if (results.length >= maxResults) return false;
-      const title   = $(el).find(".result__title").text().trim();
-      const rawUrl  = $(el).find(".result__url").text().trim();
-      const snippet = $(el).find(".result__snippet").text().trim();
-      if (title && snippet) results.push({ title, url: rawUrl, snippet });
-    });
+    // Split HTML into individual result blocks
+    const blocks = html.split(/class="result results_links/);
+    for (let i = 1; i < blocks.length && results.length < maxResults; i++) {
+      const block = blocks[i];
+
+      // Extract title from result__a
+      const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
+      const title = titleMatch ? decodeHtmlEntities(titleMatch[1]) : "";
+
+      // Extract URL
+      const urlMatch = block.match(/class="result__url"[^>]*>([\s\S]*?)<\//);
+      const url = urlMatch ? decodeHtmlEntities(urlMatch[1]) : "";
+
+      // Extract snippet
+      const snipMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
+      const snippet = snipMatch ? decodeHtmlEntities(snipMatch[1]) : "";
+
+      if (title) results.push({ title, url, snippet });
+    }
 
     return { query, results, count: results.length };
   } catch (err) {
