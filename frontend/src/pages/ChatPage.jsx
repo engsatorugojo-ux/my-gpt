@@ -148,7 +148,8 @@ export default function ChatPage({ user, onLogout }) {
     setInput("");
     setImage(null);
     setSending(true);
-    inputRef.current?.focus(); // keep keyboard open immediately
+    // Reset textarea height to 1 row
+    if (inputRef.current) { inputRef.current.style.height = "auto"; inputRef.current.focus(); }
 
     try {
       const res = await chatApi.send(convId, text, imgPayload);
