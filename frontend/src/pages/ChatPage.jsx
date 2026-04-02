@@ -15,22 +15,49 @@ const IconGear    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentCo
 
 // ── Message component ─────────────────────────────────────────────────────────
 
+function CopyButton({ text }) {
+  const [copied, setCopied] = useState(false);
+  function copy() {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+  return (
+    <button
+      onClick={copy}
+      className="opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-white p-1 rounded"
+      title="Copy"
+    >
+      {copied
+        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-accent"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
+        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><rect x="9" y="9" width="13" height="13" rx="2"/><path strokeLinecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+      }
+    </button>
+  );
+}
+
 function Message({ role, content }) {
   const isUser = role === "user";
   if (isUser) {
     return (
-      <div className="flex justify-end mb-6 px-4">
-        <div className="max-w-[70%] bg-input text-[#ececec] rounded-3xl px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap">
+      <div className="flex justify-end items-end gap-2 mb-6 px-4 group">
+        <CopyButton text={content} />
+        <div className="max-w-[70%] bg-input text-[#ececec] rounded-3xl px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap select-text">
           {content}
         </div>
       </div>
     );
   }
   return (
-    <div className="flex gap-4 mb-6 px-4">
+    <div className="flex gap-4 mb-6 px-4 group">
       <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0 mt-0.5">M</div>
-      <div className="flex-1 text-[#ececec] text-[15px] pt-0.5 prose-chat">
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+      <div className="flex-1 min-w-0">
+        <div className="text-[#ececec] text-[15px] pt-0.5 prose-chat select-text">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+        </div>
+        <div className="flex mt-1">
+          <CopyButton text={content} />
+        </div>
       </div>
     </div>
   );
@@ -153,7 +180,7 @@ export default function ChatPage({ user, onLogout }) {
   const grouped = groupConversations(filtered);
 
   return (
-    <div className="flex h-screen bg-main overflow-hidden select-none">
+    <div className="flex h-screen bg-main overflow-hidden">
 
       {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
       <aside className={`${sidebarOpen ? "w-[260px]" : "w-0"} shrink-0 bg-sidebar flex flex-col transition-[width] duration-200 overflow-hidden`}>

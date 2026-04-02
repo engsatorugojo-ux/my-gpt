@@ -183,7 +183,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
       messages,
       tools:       tools.length ? tools : undefined,
       tool_choice: tools.length ? "auto" : undefined,
-      max_tokens:  2000,
+      max_completion_tokens:  2000,
     });
 
     const firstChoice = firstCall.choices[0];
@@ -229,7 +229,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
     const secondCall = await openai.chat.completions.create({
       model,
       messages: messagesWithTools,
-      max_tokens: 2000,
+      max_completion_tokens: 2000,
     });
 
     const reply = secondCall.choices[0].message.content;
