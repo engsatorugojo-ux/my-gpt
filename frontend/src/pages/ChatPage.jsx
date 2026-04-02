@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check, Paperclip, X as XIcon } from "lucide-react";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
+import CodeBlock from "../components/CodeBlock.jsx";
 import ThinkingBlock from "../components/ThinkingBlock.jsx";
 
 // ── Message component ─────────────────────────────────────────────────────────
@@ -51,7 +52,12 @@ function Message({ role, content, imageUrl, steps }) {
       <div className="flex-1 min-w-0">
         <ThinkingBlock steps={steps} />
         <div className="text-[#ececec] text-[15px] pt-0.5 prose-chat select-text">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={{ code: ({ node, className, children, ...props }) =>
+              <CodeBlock className={className} {...props}>{children}</CodeBlock>
+            }}
+          >{content}</ReactMarkdown>
         </div>
         <div className="flex mt-1">
           <CopyButton text={content} />
