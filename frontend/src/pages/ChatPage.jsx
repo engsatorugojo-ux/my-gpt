@@ -193,7 +193,7 @@ export default function ChatPage({ user, onLogout }) {
   const grouped = groupConversations(filtered);
 
   return (
-    <div className="flex h-[100dvh] bg-main overflow-hidden relative">
+    <div className="flex bg-main overflow-hidden relative" style={{height: "var(--app-height, 100dvh)"}}>
 
       {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
       {sidebarOpen && (
@@ -282,7 +282,7 @@ export default function ChatPage({ user, onLogout }) {
       </aside>
 
       {/* ── Main area ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
         {/* Top bar */}
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
@@ -319,7 +319,7 @@ export default function ChatPage({ user, onLogout }) {
         ) : (
           /* ── Chat view ── */
           <>
-            <div ref={messagesRef} className="flex-1 overflow-y-auto py-4 md:py-6 overscroll-contain">
+            <div ref={messagesRef} className="messages-scroll flex-1 py-4 md:py-6 overscroll-contain">
               <div className="max-w-3xl mx-auto">
                 {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl} steps={m.steps}/>)}
                 {sending && <TypingIndicator/>}
