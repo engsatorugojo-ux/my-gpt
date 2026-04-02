@@ -1,0 +1,45 @@
+use_default_settings: true
+
+general:
+  debug: false
+  instance_name: "MyGPT Search"
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  default_lang: "it-IT"
+  formats:
+    - html
+    - json
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "mygpt_searxng_secret_32chars_long"
+  base_url: "http://localhost:8888"
+  limiter: false
+  image_proxy: false
+
+ui:
+  static_use_hash: false
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+    use_mobile_ui: false
+
+  - name: bing
+    engine: bing
+    shortcut: bi
+
+  - name: wikipedia
+    engine: wikipedia
+    shortcut: wp
+
+outgoing:
+  request_timeout: 10.0
+  useragent_suffix: ""
+  pool_connections: 100
+  pool_maxsize: 20
+  enable_http2: true

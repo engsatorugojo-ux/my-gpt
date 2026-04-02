@@ -25,6 +25,7 @@ services:
       JWT_SECRET: my_gpt_jwt_secret_change_in_prod
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
+      SEARXNG_URL: http://searxng:8080
       PORT: 4002
       NODE_ENV: production
     ports:
@@ -32,6 +33,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+
+  searxng:
+    image: searxng/searxng:latest
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./searxng:/etc/searxng
+    environment:
+      SEARXNG_SETTINGS_PATH: /etc/searxng/settings.yml
 
   frontend:
     build: ./frontend

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import axios from "axios";
-// cheerio not needed — using regex parsing
+// Web search via SearXNG (self-hosted, no bot detection)
 import OpenAI from "openai";
 import pool from "../db.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -9,52 +9,28 @@ const router = Router();
 
 // ── Web search via DuckDuckGo ─────────────────────────────────────────────────
 
-function decodeHtmlEntities(str) {
-  return str
-    .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
-    .replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&nbsp;/g, " ")
-    .replace(/&#\d+;/g, m => String.fromCharCode(parseInt(m.slice(2,-1))))
-    .replace(/<[^>]+>/g, "").trim();
-}
+const SEARXNG_URL = process.env.SEARXNG_URL || "http://searxng:8080";
 
 async function webSearch(query, maxResults = 10) {
   try {
-    const { data: html } = await axios.get(
-      `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`,
-      {
-        headers: {
-          "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml",
-          "Accept-Language": "it-IT,it;q=0.9,en-US;q=0.8",
-        },
-        timeout: 12000,
-      }
-    );
+    const { data } = await axios.get(`${SEARXNG_URL}/search`, {
+      params: {
+        q:         query,
+        format:    "json",
+        language:  "it-IT",
+        categories: "general,news",
+        pageno:    1,
+      },
+      timeout: 12000,
+    });
 
-    const results = [];
-
-    // Split HTML into individual result blocks
-    const blocks = html.split(/class="result results_links/);
-    for (let i = 1; i < blocks.length && results.length < maxResults; i++) {
-      const block = blocks[i];
-
-      // Extract title from result__a
-      const titleMatch = block.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
-      const title = titleMatch ? decodeHtmlEntities(titleMatch[1]) : "";
-
-      // Extract URL
-      const urlMatch = block.match(/class="result__url"[^>]*>([\s\S]*?)<\//);
-      const url = urlMatch ? decodeHtmlEntities(urlMatch[1]) : "";
-
-      // Extract snippet
-      const snipMatch = block.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/a>/);
-      const snippet = snipMatch ? decodeHtmlEntities(snipMatch[1]) : "";
-
-      if (title) results.push({ title, url, snippet });
-    }
+    const results = (data.results || [])
+      .slice(0, maxResults)
+      .map(r => ({ title: r.title, url: r.url, snippet: r.content || r.snippet || "" }));
 
     return { query, results, count: results.length };
   } catch (err) {
+    console.warn("[search] SearXNG error:", err.message);
     return { query, results: [], error: err.message };
   }
 }
