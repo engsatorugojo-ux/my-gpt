@@ -31,9 +31,9 @@ function Message({ role, content, imageUrl, steps }) {
   const isUser = role === "user";
   if (isUser) {
     return (
-      <div className="flex justify-end items-end gap-2 mb-6 px-4 group">
+      <div className="flex justify-end items-end gap-2 mb-4 md:mb-6 px-2 md:px-4 group">
         <CopyButton text={content} />
-        <div className="max-w-[70%] space-y-2">
+        <div className="max-w-[85%] md:max-w-[70%] space-y-2">
           {imageUrl && (
             <img src={imageUrl} alt="attachment" className="rounded-2xl max-h-64 w-auto ml-auto block border border-white/10" />
           )}
@@ -93,7 +93,7 @@ export default function ChatPage({ user, onLogout }) {
   const [image,         setImage]         = useState(null); // {base64, mimeType, previewUrl}
   const [sending,       setSending]       = useState(false);
   const [showSettings,  setShowSettings]  = useState(false);
-  const [sidebarOpen,   setSidebarOpen]   = useState(true);
+  const [sidebarOpen,   setSidebarOpen]   = useState(() => typeof window !== 'undefined' && window.innerWidth >= 768);
   const [search,        setSearch]        = useState("");
   const [searchOpen,    setSearchOpen]    = useState(false);
 
@@ -115,6 +115,7 @@ export default function ChatPage({ user, onLogout }) {
     setActiveId(null);
     setMessages([]);
     setInput("");
+    if (window.innerWidth < 768) setSidebarOpen(false);
     setTimeout(() => inputRef.current?.focus(), 50);
   }
 
@@ -188,10 +189,21 @@ export default function ChatPage({ user, onLogout }) {
   const grouped = groupConversations(filtered);
 
   return (
-    <div className="flex h-screen bg-main overflow-hidden">
+    <div className="flex h-screen bg-main overflow-hidden relative">
 
       {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
-      <aside className={`${sidebarOpen ? "w-[260px]" : "w-0"} shrink-0 bg-sidebar flex flex-col transition-[width] duration-200 overflow-hidden`}>
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)}/>
+      )}
+      <aside className={`
+        ${sidebarOpen ? "translate-x-0" : "-translate-x-full md:-translate-x-0"}
+        fixed md:relative z-30 md:z-auto
+        w-[260px] h-full md:h-auto
+        ${sidebarOpen ? "md:w-[260px]" : "md:w-0"}
+        bg-sidebar flex flex-col
+        transition-transform md:transition-[width] duration-200
+        overflow-hidden shrink-0
+      `}>
 
         {/* New chat + search */}
         <div className="p-2 pt-3 space-y-0.5">
@@ -225,7 +237,7 @@ export default function ChatPage({ user, onLogout }) {
               <div key={group} className="mt-4">
                 <p className="px-3 mb-1 text-[11px] font-semibold text-muted uppercase tracking-wider">{group}</p>
                 {convs.map(c => (
-                  <div key={c.id} onClick={() => setActiveId(c.id)}
+                  <div key={c.id} onClick={() => { setActiveId(c.id); if (window.innerWidth < 768) setSidebarOpen(false); }}
                     className={`group flex items-center justify-between px-3 py-2 rounded-xl cursor-pointer transition text-[14px] ${
                       c.id === activeId
                         ? "bg-white/10 text-white"
@@ -281,11 +293,11 @@ export default function ChatPage({ user, onLogout }) {
         {messages.length === 0 && !sending ? (
           /* ── Empty state ── */
           <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
-            <h1 className="text-[32px] font-semibold text-[#ececec] mb-10 tracking-tight">
+            <h1 className="text-[24px] md:text-[32px] font-semibold text-[#ececec] mb-6 md:mb-10 tracking-tight text-center px-4">
               Come posso aiutarti?
             </h1>
             {/* Centered input */}
-            <div className="w-full max-w-2xl">
+            <div className="w-full max-w-2xl px-0 md:px-0">
               <InputBox
                 inputRef={inputRef}
                 value={input}
@@ -302,7 +314,7 @@ export default function ChatPage({ user, onLogout }) {
         ) : (
           /* ── Chat view ── */
           <>
-            <div className="flex-1 overflow-y-auto py-6">
+            <div className="flex-1 overflow-y-auto py-4 md:py-6">
               <div className="max-w-3xl mx-auto">
                 {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl} steps={m.steps}/>)}
                 {sending && <TypingIndicator/>}
@@ -311,7 +323,7 @@ export default function ChatPage({ user, onLogout }) {
             </div>
 
             {/* Bottom input */}
-            <div className="px-4 pb-4 shrink-0">
+            <div className="px-2 md:px-4 pb-3 md:pb-4 shrink-0">
               <div className="max-w-3xl mx-auto">
                 <InputBox
                   inputRef={inputRef}
@@ -323,7 +335,7 @@ export default function ChatPage({ user, onLogout }) {
                   image={image}
                   onImage={setImage}
                 />
-                <p className="text-center text-[12px] text-muted mt-2">
+                <p className="hidden md:block text-center text-[12px] text-muted mt-2">
                   Enter to send · Shift+Enter for new line
                 </p>
               </div>

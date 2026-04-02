@@ -40,7 +40,7 @@ function Step({ step }) {
     <div className="rounded-xl border border-white/8 overflow-hidden">
       <button
         onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/4 transition text-left"
+        className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-white/5 transition text-left"
       >
         <span className={step.success ? "text-accent" : "text-red-400"}>
           {step.success ? stepIcon(step.toolName) : <AlertCircle size={13} className="shrink-0"/>}

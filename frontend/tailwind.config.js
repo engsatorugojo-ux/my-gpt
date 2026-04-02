@@ -13,5 +13,5 @@ export default {
     },
   },
   plugins: [],
-  safelist: ["bg-white/8"],
+  safelist: ["bg-white/8", "bg-white/5", "translate-x-0", "-translate-x-full"],
 };
