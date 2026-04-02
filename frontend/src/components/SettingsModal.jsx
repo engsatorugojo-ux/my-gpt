@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { X, Trash2 } from "lucide-react";
 import { integrationsApi, settingsApi } from "../api/client.js";
 
 // ── Tab: Integrations ─────────────────────────────────────────────────────────
@@ -88,7 +89,7 @@ function IntegrationsTab() {
               {i.enabled ? "ON" : "OFF"}
             </button>
             <button onClick={() => handleDelete(i.id)}
-              className="text-gray-500 hover:text-red-400 transition shrink-0 text-lg leading-none px-1">✕</button>
+              className="text-gray-500 hover:text-red-400 transition shrink-0 p-1 rounded"><Trash2 size={14}/></button>
           </div>
         ))}
       </div>
@@ -213,7 +214,7 @@ export default function SettingsModal({ onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
           <h2 className="text-white font-bold text-lg">⚙️ Settings</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition text-xl font-bold leading-none">✕</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-white transition p-1 rounded"><X size={18}/></button>
         </div>
 
         {/* Tabs */}

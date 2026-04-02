@@ -1,17 +1,9 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check } from "lucide-react";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
-
-// ── Icons ─────────────────────────────────────────────────────────────────────
-
-const IconPencil  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a4 4 0 01-2.828 1.172H7v-2a4 4 0 011.172-2.828z"/></svg>;
-const IconSearch  = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><circle cx="11" cy="11" r="8"/><path strokeLinecap="round" d="M21 21l-4.35-4.35"/></svg>;
-const IconTrash   = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5"><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6M9 7h6m2 0a1 1 0 00-1-1h-4a1 1 0 00-1 1"/></svg>;
-const IconSend    = () => <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>;
-const IconMenu    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5"><path strokeLinecap="round" d="M4 6h16M4 12h16M4 18h16"/></svg>;
-const IconGear    = () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><path strokeLinecap="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>;
 
 // ── Message component ─────────────────────────────────────────────────────────
 
@@ -28,10 +20,7 @@ function CopyButton({ text }) {
       className="opacity-0 group-hover:opacity-100 transition-opacity text-muted hover:text-white p-1 rounded"
       title="Copy"
     >
-      {copied
-        ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4 text-accent"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7"/></svg>
-        : <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-4 h-4"><rect x="9" y="9" width="13" height="13" rx="2"/><path strokeLinecap="round" d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-      }
+      {copied ? <Check size={15} className="text-accent" /> : <Copy size={15} />}
     </button>
   );
 }
@@ -190,13 +179,13 @@ export default function ChatPage({ user, onLogout }) {
           <button onClick={newConversation}
             className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition group">
             <div className="flex items-center gap-3">
-              <IconPencil/>
+              <PenLine size={15}/>
               <span className="font-medium">New chat</span>
             </div>
           </button>
           <button onClick={() => setSearchOpen(p => !p)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition">
-            <IconSearch/>
+            <Search size={15}/>
             <span>Search</span>
           </button>
           {searchOpen && (
@@ -226,7 +215,7 @@ export default function ChatPage({ user, onLogout }) {
                     <span className="truncate flex-1">{c.title}</span>
                     <button onClick={e => deleteConversation(c.id, e)}
                       className="opacity-0 group-hover:opacity-100 text-muted hover:text-red-400 transition shrink-0 ml-1 p-0.5">
-                      <IconTrash/>
+                      <Trash2 size={14}/>
                     </button>
                   </div>
                 ))}
@@ -242,7 +231,7 @@ export default function ChatPage({ user, onLogout }) {
         <div className="p-2 border-t border-white/8">
           <button onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-[#ececec] hover:bg-white/8 transition">
-            <IconGear/>
+            <Settings2 size={15}/>
             <span>Settings</span>
           </button>
           <div className="flex items-center justify-between px-3 py-2.5 rounded-xl">
@@ -264,7 +253,7 @@ export default function ChatPage({ user, onLogout }) {
         <div className="flex items-center gap-2 px-4 py-3 shrink-0">
           <button onClick={() => setSidebarOpen(p => !p)}
             className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8">
-            <IconMenu/>
+            <PanelLeft size={18}/>
           </button>
           <span className="text-[15px] font-semibold text-[#ececec] ml-1">MyGPT</span>
         </div>
@@ -348,7 +337,7 @@ function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, cente
             : "bg-white/15 text-muted cursor-not-allowed"
         }`}
       >
-        <IconSend/>
+        <ArrowUp size={15}/>
       </button>
     </div>
   );
