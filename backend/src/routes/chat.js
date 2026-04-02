@@ -110,8 +110,8 @@ function buildContextBlock(contexts) {
 
 router.post("/:conversationId", requireAuth, async (req, res) => {
   const { conversationId } = req.params;
-  const { message } = req.body;
-  if (!message?.trim()) return res.status(400).json({ error: "message is required" });
+  const { message, imageBase64, imageMimeType } = req.body;
+  if (!message?.trim() && !imageBase64) return res.status(400).json({ error: "message or image required" });
 
   // Verify conversation ownership
   const { rows: [conv] } = await pool.query(
@@ -119,10 +119,12 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
   );
   if (!conv) return res.status(404).json({ error: "Conversation not found" });
 
-  // Save user message
+  const textContent = message?.trim() || "";
+
+  // Save user message (text only in DB)
   await pool.query(
     "INSERT INTO messages (conversation_id,role,content) VALUES ($1,'user',$2)",
-    [conversationId, message]
+    [conversationId, textContent || "[image]"]  
   );
 
   // Load user AI settings
@@ -174,7 +176,13 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
   let messages = [
     { role: "system", content: systemPrompt },
     ...historyMessages,
-    { role: "user",   content: message },
+    { role: "user",   content: imageBase64
+        ? [
+            ...(textContent ? [{ type: "text", text: textContent }] : []),
+            { type: "image_url", image_url: { url: `data:${imageMimeType || "image/png"};base64,${imageBase64}`, detail: "auto" } },
+          ]
+        : textContent
+    },
   ];
 
   try {
@@ -197,7 +205,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
       );
       if (historyMessages.length === 0) {
         await pool.query("UPDATE conversations SET title=$1 WHERE id=$2",
-          [message.slice(0, 60) + (message.length > 60 ? "…" : ""), conversationId]);
+          [(textContent || "Image").slice(0, 60) + ((textContent || "Image").length > 60 ? "…" : ""), conversationId]);
       }
       return res.json({ reply });
     }
@@ -241,7 +249,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
     );
     if (historyMessages.length === 0) {
       await pool.query("UPDATE conversations SET title=$1 WHERE id=$2",
-        [message.slice(0, 60) + (message.length > 60 ? "…" : ""), conversationId]);
+        [(textContent || "Image").slice(0, 60) + ((textContent || "Image").length > 60 ? "…" : ""), conversationId]);
     }
 
     res.json({ reply });

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check } from "lucide-react";
+import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check, Paperclip, X as XIcon } from "lucide-react";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
 
@@ -25,14 +25,21 @@ function CopyButton({ text }) {
   );
 }
 
-function Message({ role, content }) {
+function Message({ role, content, imageUrl }) {
   const isUser = role === "user";
   if (isUser) {
     return (
       <div className="flex justify-end items-end gap-2 mb-6 px-4 group">
         <CopyButton text={content} />
-        <div className="max-w-[70%] bg-input text-[#ececec] rounded-3xl px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap select-text">
-          {content}
+        <div className="max-w-[70%] space-y-2">
+          {imageUrl && (
+            <img src={imageUrl} alt="attachment" className="rounded-2xl max-h-64 w-auto ml-auto block border border-white/10" />
+          )}
+          {content && (
+            <div className="bg-input text-[#ececec] rounded-3xl px-5 py-3 text-[15px] leading-7 whitespace-pre-wrap select-text">
+              {content}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -75,6 +82,7 @@ export default function ChatPage({ user, onLogout }) {
   const [activeId,      setActiveId]      = useState(null);
   const [messages,      setMessages]      = useState([]);
   const [input,         setInput]         = useState("");
+  const [image,         setImage]         = useState(null); // {base64, mimeType, previewUrl}
   const [sending,       setSending]       = useState(false);
   const [showSettings,  setShowSettings]  = useState(false);
   const [sidebarOpen,   setSidebarOpen]   = useState(true);
@@ -110,23 +118,26 @@ export default function ChatPage({ user, onLogout }) {
   }
 
   async function sendMessage() {
-    if (!input.trim() || sending) return;
+    if (!input.trim() && !image || sending) return;
     const text = input.trim();
+    const imgPayload = image ? { imageBase64: image.base64, imageMimeType: image.mimeType } : {};
+    const previewUrl = image?.previewUrl;
     let convId = activeId;
 
     if (!convId) {
-      const res = await convsApi.create({ title: text.slice(0, 60) });
+      const res = await convsApi.create({ title: (text || "Image").slice(0, 60) });
       convId = res.data.id;
       setConversations(p => [res.data, ...p]);
       setActiveId(convId);
     }
 
-    setMessages(p => [...p, { id: Date.now(), role: "user", content: text }]);
+    setMessages(p => [...p, { id: Date.now(), role: "user", content: text, imageUrl: previewUrl }]);
     setInput("");
+    setImage(null);
     setSending(true);
 
     try {
-      const res = await chatApi.send(convId, text);
+      const res = await chatApi.send(convId, text, imgPayload);
       setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: res.data.reply }]);
       loadConversations();
     } catch {
@@ -274,6 +285,8 @@ export default function ChatPage({ user, onLogout }) {
                 onKeyDown={onKeyDown}
                 onSend={sendMessage}
                 sending={sending}
+                image={image}
+                onImage={setImage}
                 centered
               />
             </div>
@@ -283,7 +296,7 @@ export default function ChatPage({ user, onLogout }) {
           <>
             <div className="flex-1 overflow-y-auto py-6">
               <div className="max-w-3xl mx-auto">
-                {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content}/>)}
+                {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl}/>)}
                 {sending && <TypingIndicator/>}
                 <div ref={bottomRef}/>
               </div>
@@ -299,6 +312,8 @@ export default function ChatPage({ user, onLogout }) {
                   onKeyDown={onKeyDown}
                   onSend={sendMessage}
                   sending={sending}
+                  image={image}
+                  onImage={setImage}
                 />
                 <p className="text-center text-[12px] text-muted mt-2">
                   Enter to send · Shift+Enter for new line
@@ -316,29 +331,77 @@ export default function ChatPage({ user, onLogout }) {
 
 // ── Input box (reused in both empty and chat state) ───────────────────────────
 
-function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, centered }) {
+function fileToImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) return reject(new Error("Not an image"));
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      resolve({ base64: dataUrl.split(",")[1], mimeType: file.type, previewUrl: dataUrl });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, image, onImage, centered }) {
+  const fileRef = useRef(null);
+
+  function handlePaste(e) {
+    const items = Array.from(e.clipboardData?.items || []);
+    const imgItem = items.find(i => i.type.startsWith("image/"));
+    if (!imgItem) return;
+    e.preventDefault();
+    fileToImage(imgItem.getAsFile()).then(onImage).catch(() => {});
+  }
+
+  async function handleFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try { onImage(await fileToImage(file)); } catch {}
+    e.target.value = "";
+  }
+
+  const canSend = (value.trim() || image) && !sending;
+
   return (
-    <div className={`relative bg-input rounded-[28px] flex items-end gap-2 px-4 py-3.5 border border-white/8 focus-within:border-white/20 transition ${centered ? "shadow-lg" : ""}`}>
-      <textarea
-        ref={inputRef}
-        value={value}
-        onChange={onChange}
-        onKeyDown={onKeyDown}
-        placeholder="Message MyGPT…"
-        rows={1}
-        className="flex-1 bg-transparent text-[15px] text-[#ececec] placeholder-muted resize-none focus:outline-none leading-6 max-h-[200px] py-0.5"
-      />
-      <button
-        onClick={onSend}
-        disabled={sending || !value.trim()}
-        className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mb-0.5 transition ${
-          value.trim() && !sending
-            ? "bg-white text-black hover:bg-gray-200"
-            : "bg-white/15 text-muted cursor-not-allowed"
-        }`}
-      >
-        <ArrowUp size={15}/>
-      </button>
+    <div className={`bg-input rounded-[28px] border border-white/8 focus-within:border-white/20 transition ${centered ? "shadow-lg" : ""}`}>
+      {image && (
+        <div className="px-4 pt-3 pb-1">
+          <div className="relative inline-block">
+            <img src={image.previewUrl} alt="attachment" className="h-24 w-auto rounded-xl border border-white/10 object-cover" />
+            <button
+              onClick={() => onImage(null)}
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#3a3a3a] hover:bg-red-500 rounded-full flex items-center justify-center transition"
+            >
+              <XIcon size={11} />
+            </button>
+          </div>
+        </div>
+      )}
+      <div className="flex items-end gap-2 px-4 py-3">
+        <button type="button" onClick={() => fileRef.current?.click()}
+          className="text-muted hover:text-white transition shrink-0 mb-0.5 p-1 rounded-lg hover:bg-white/8" title="Attach image">
+          <Paperclip size={17}/>
+        </button>
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+        <textarea
+          ref={inputRef}
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          onPaste={handlePaste}
+          placeholder="Message MyGPT…"
+          rows={1}
+          className="flex-1 bg-transparent text-[15px] text-[#ececec] placeholder-muted resize-none focus:outline-none leading-6 max-h-[200px] py-0.5"
+        />
+        <button onClick={onSend} disabled={!canSend}
+          className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 mb-0.5 transition ${
+            canSend ? "bg-white text-black hover:bg-gray-200" : "bg-white/15 text-muted cursor-not-allowed"
+          }`}>
+          <ArrowUp size={15}/>
+        </button>
+      </div>
     </div>
   );
 }

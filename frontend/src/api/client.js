@@ -18,7 +18,7 @@ export const convsApi = {
   messages: id      => api.get(`/api/conversations/${id}/messages`),
 };
 export const chatApi = {
-  send: (convId, message) => api.post(`/api/chat/${convId}`, { message }),
+  send: (convId, message, image) => api.post(`/api/chat/${convId}`, { message, ...image }),
 };
 export const integrationsApi = {
   list:   ()        => api.get("/api/integrations"),
