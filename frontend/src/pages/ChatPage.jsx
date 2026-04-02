@@ -138,7 +138,7 @@ export default function ChatPage({ user, onLogout }) {
 
         {/* Sidebar footer */}
         <div className="p-3 border-t border-border space-y-1">
-          <button onClick={() => setShowIntegrations(true)}
+          <button onClick={() => setShowSettings(true)}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-input transition text-sm text-gray-400 hover:text-white">
             ⚙️ Settings
           </button>
