@@ -130,7 +130,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
     "SELECT openai_api_key, openai_model FROM user_settings WHERE user_id=$1", [req.userId]
   );
   const apiKey = settings?.openai_api_key || process.env.OPENAI_API_KEY || "";
-  const model  = settings?.openai_model   || process.env.OPENAI_MODEL  || "gpt-4o";
+  const model  = settings?.openai_model   || process.env.OPENAI_MODEL  || "gpt-4.5-mini";
 
   if (!apiKey) {
     const msg = "⚠️ No OpenAI API key configured. Go to **⚙️ Settings → AI Settings** to add your key.";

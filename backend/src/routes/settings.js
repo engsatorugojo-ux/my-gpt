@@ -11,7 +11,7 @@ router.get("/", requireAuth, async (req, res) => {
     "SELECT openai_api_key, openai_model FROM user_settings WHERE user_id=$1",
     [req.userId]
   );
-  if (!rows.length) return res.json({ openai_api_key: "", openai_model: "gpt-4o" });
+  if (!rows.length) return res.json({ openai_api_key: "", openai_model: "gpt-4.5-mini" });
   // Never expose the full key — mask it
   const s = rows[0];
   res.json({
@@ -38,7 +38,7 @@ router.put("/", requireAuth, async (req, res) => {
     } else {
       await pool.query(
         "INSERT INTO user_settings (user_id,openai_api_key,openai_model) VALUES ($1,$2,$3)",
-        [req.userId, openai_api_key || "", openai_model || "gpt-4o"]
+        [req.userId, openai_api_key || "", openai_model || "gpt-4.5-mini"]
       );
     }
     res.json({ ok: true });
@@ -74,9 +74,10 @@ router.get("/models", requireAuth, async (req, res) => {
         const rank = id => {
           if (id.includes("o3"))       return 0;
           if (id.includes("o1"))       return 1;
-          if (id === "gpt-4o")         return 2;
-          if (id.startsWith("gpt-4o")) return 3;
-          if (id.startsWith("gpt-4"))  return 4;
+          if (id === "gpt-4.5-mini")  return 2;
+          if (id === "gpt-4o")         return 3;
+          if (id.startsWith("gpt-4o")) return 4;
+          if (id.startsWith("gpt-4"))  return 5;
           return 5;
         };
         return rank(a) - rank(b);
@@ -89,7 +90,7 @@ router.get("/models", requireAuth, async (req, res) => {
 });
 
 function getDefaultModels() {
-  return ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo", "o1", "o1-mini", "o3-mini"];
+  return ["gpt-4.5-mini", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo", "gpt-4", "gpt-3.5-turbo", "o1", "o1-mini", "o3-mini"];
 }
 
 export default router;
