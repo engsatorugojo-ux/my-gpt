@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS api_integrations (
 CREATE TABLE IF NOT EXISTS user_settings (
   user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
   openai_api_key TEXT DEFAULT '',
-  openai_model VARCHAR(100) DEFAULT 'gpt-4.5-mini',
+  openai_model VARCHAR(100) DEFAULT 'gpt-5.4-mini',
   updated_at TIMESTAMP DEFAULT NOW()
 );
 

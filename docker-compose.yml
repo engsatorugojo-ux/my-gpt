@@ -24,7 +24,7 @@ services:
       DATABASE_URL: postgres://gpt_user:gpt_pass@db:5432/my_gpt
       JWT_SECRET: my_gpt_jwt_secret_change_in_prod
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.5-mini}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
       PORT: 4002
       NODE_ENV: production
     ports:
