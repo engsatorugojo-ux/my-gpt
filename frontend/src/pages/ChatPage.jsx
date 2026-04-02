@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check, Paperclip, X as XIcon } from "lucide-react";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
+import ThinkingBlock from "../components/ThinkingBlock.jsx";
 
 // ── Message component ─────────────────────────────────────────────────────────
 
@@ -25,7 +26,7 @@ function CopyButton({ text }) {
   );
 }
 
-function Message({ role, content, imageUrl }) {
+function Message({ role, content, imageUrl, steps }) {
   const isUser = role === "user";
   if (isUser) {
     return (
@@ -48,6 +49,7 @@ function Message({ role, content, imageUrl }) {
     <div className="flex gap-4 mb-6 px-4 group">
       <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center text-white font-bold text-sm shrink-0 mt-0.5">M</div>
       <div className="flex-1 min-w-0">
+        <ThinkingBlock steps={steps} />
         <div className="text-[#ececec] text-[15px] pt-0.5 prose-chat select-text">
           <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
@@ -138,7 +140,7 @@ export default function ChatPage({ user, onLogout }) {
 
     try {
       const res = await chatApi.send(convId, text, imgPayload);
-      setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: res.data.reply }]);
+      setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: res.data.reply, steps: res.data.steps || [] }]);
       loadConversations();
     } catch {
       setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: "Sorry, something went wrong." }]);
@@ -296,7 +298,7 @@ export default function ChatPage({ user, onLogout }) {
           <>
             <div className="flex-1 overflow-y-auto py-6">
               <div className="max-w-3xl mx-auto">
-                {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl}/>)}
+                {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl} steps={m.steps}/>)}
                 {sending && <TypingIndicator/>}
                 <div ref={bottomRef}/>
               </div>
