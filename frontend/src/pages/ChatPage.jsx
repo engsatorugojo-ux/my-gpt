@@ -97,12 +97,16 @@ export default function ChatPage({ user, onLogout }) {
   const [search,        setSearch]        = useState("");
   const [searchOpen,    setSearchOpen]    = useState(false);
 
-  const bottomRef = useRef(null);
+  const bottomRef   = useRef(null);
+  const messagesRef = useRef(null);
   const inputRef  = useRef(null);
 
   useEffect(() => { loadConversations(); }, []);
   useEffect(() => { if (activeId) loadMessages(activeId); else setMessages([]); }, [activeId]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, sending]);
+  useEffect(() => {
+    const el = messagesRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages, sending]);
 
   async function loadConversations() {
     try { setConversations((await convsApi.list()).data); } catch {}
@@ -189,7 +193,7 @@ export default function ChatPage({ user, onLogout }) {
   const grouped = groupConversations(filtered);
 
   return (
-    <div className="flex h-screen bg-main overflow-hidden relative">
+    <div className="flex h-[100dvh] bg-main overflow-hidden relative">
 
       {/* ── Sidebar ──────────────────────────────────────────────────────────── */}
       {sidebarOpen && (
@@ -308,13 +312,14 @@ export default function ChatPage({ user, onLogout }) {
                 image={image}
                 onImage={setImage}
                 centered
+                onFocusMobile={() => { const el = messagesRef.current; if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 300); }}
               />
             </div>
           </div>
         ) : (
           /* ── Chat view ── */
           <>
-            <div className="flex-1 overflow-y-auto py-4 md:py-6">
+            <div ref={messagesRef} className="flex-1 overflow-y-auto py-4 md:py-6 overscroll-contain">
               <div className="max-w-3xl mx-auto">
                 {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl} steps={m.steps}/>)}
                 {sending && <TypingIndicator/>}
@@ -334,6 +339,7 @@ export default function ChatPage({ user, onLogout }) {
                   sending={sending}
                   image={image}
                   onImage={setImage}
+                onFocusMobile={() => { const el = messagesRef.current; if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 300); }}
                 />
                 <p className="hidden md:block text-center text-[12px] text-muted mt-2">
                   Enter to send · Shift+Enter for new line
@@ -378,7 +384,7 @@ function fileToImage(file) {
   });
 }
 
-function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, image, onImage, centered }) {
+function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, image, onImage, centered, onFocusMobile }) {
   const fileRef = useRef(null);
 
   function handlePaste(e) {
@@ -425,6 +431,7 @@ function InputBox({ inputRef, value, onChange, onKeyDown, onSend, sending, image
           onChange={onChange}
           onKeyDown={onKeyDown}
           onPaste={handlePaste}
+          onFocus={() => onFocusMobile?.()}
           placeholder="Message MyGPT…"
           rows={1}
           className="flex-1 bg-transparent text-[15px] text-[#ececec] placeholder-muted resize-none focus:outline-none leading-6 max-h-[200px] py-0.5"
