@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check, Paperclip, X as XIcon } from "lucide-react";
+import { PenLine, Search, Trash2, ArrowUp, PanelLeft, Settings2, Copy, Check, Paperclip, X as XIcon, RotateCcw } from "lucide-react";
 import { convsApi, chatApi } from "../api/client.js";
 import SettingsModal from "../components/SettingsModal.jsx";
 import CodeBlock from "../components/CodeBlock.jsx";
@@ -148,6 +148,7 @@ export default function ChatPage({ user, onLogout }) {
     setInput("");
     setImage(null);
     setSending(true);
+    inputRef.current?.focus(); // keep keyboard open immediately
 
     try {
       const res = await chatApi.send(convId, text, imgPayload);
@@ -157,7 +158,7 @@ export default function ChatPage({ user, onLogout }) {
       setMessages(p => [...p, { id: Date.now()+1, role: "assistant", content: "Sorry, something went wrong." }]);
     } finally {
       setSending(false);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      inputRef.current?.focus(); // restore focus after response
     }
   }
 
@@ -285,69 +286,57 @@ export default function ChatPage({ user, onLogout }) {
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
 
         {/* Top bar */}
-        <div className="flex items-center gap-2 px-4 py-3 shrink-0">
+        <div className="flex items-center gap-2 px-3 py-3 shrink-0">
           <button onClick={() => setSidebarOpen(p => !p)}
             className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8">
             <PanelLeft size={18}/>
           </button>
-          <span className="text-[15px] font-semibold text-[#ececec] ml-1">MyGPT</span>
+          <span className="text-[15px] font-semibold text-[#ececec] flex-1 ml-1">{activeConv?.title || "MyGPT"}</span>
+          <button onClick={() => window.location.reload()}
+            className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8"
+            title="Reload">
+            <RotateCcw size={16}/>
+          </button>
         </div>
 
-        {/* Messages or empty state */}
-        {messages.length === 0 && !sending ? (
-          /* ── Empty state ── */
-          <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
-            <h1 className="text-[24px] md:text-[32px] font-semibold text-[#ececec] mb-6 md:mb-10 tracking-tight text-center px-4">
-              Come posso aiutarti?
-            </h1>
-            {/* Centered input */}
-            <div className="w-full max-w-2xl px-0 md:px-0">
-              <InputBox
-                inputRef={inputRef}
-                value={input}
-                onChange={e => { setInput(e.target.value); autoResize(e); }}
-                onKeyDown={onKeyDown}
-                onSend={sendMessage}
-                sending={sending}
-                image={image}
-                onImage={setImage}
-                centered
-                onFocusMobile={() => { const el = messagesRef.current; if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 300); }}
-              />
-            </div>
-          </div>
-        ) : (
-          /* ── Chat view ── */
-          <>
-            <div ref={messagesRef} className="messages-scroll flex-1 py-4 md:py-6 overscroll-contain">
-              <div className="max-w-3xl mx-auto">
+        {/* Messages — always rendered, single InputBox keeps keyboard open */}
+        <div ref={messagesRef} className="messages-scroll flex-1 overscroll-contain">
+          <div className="max-w-3xl mx-auto px-2 md:px-4 py-4 md:py-6 min-h-full flex flex-col">
+            {messages.length === 0 && !sending ? (
+              <div className="flex-1 flex items-center justify-center">
+                <h1 className="text-[24px] md:text-[32px] font-semibold text-[#ececec] tracking-tight text-center">
+                  Come posso aiutarti?
+                </h1>
+              </div>
+            ) : (
+              <div className="flex-1">
                 {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} imageUrl={m.imageUrl} steps={m.steps}/>)}
                 {sending && <TypingIndicator/>}
                 <div ref={bottomRef}/>
               </div>
-            </div>
+            )}
+          </div>
+        </div>
 
-            {/* Bottom input */}
-            <div className="px-2 md:px-4 pb-3 md:pb-4 shrink-0">
-              <div className="max-w-3xl mx-auto">
-                <InputBox
-                  inputRef={inputRef}
-                  value={input}
-                  onChange={e => { setInput(e.target.value); autoResize(e); }}
-                  onKeyDown={onKeyDown}
-                  onSend={sendMessage}
-                  sending={sending}
-                  image={image}
-                  onImage={setImage}
-                onFocusMobile={() => { const el = messagesRef.current; if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 300); }}
-                />
-                <p className="hidden md:block text-center text-[12px] text-muted mt-2">
-                  Enter to send · Shift+Enter for new line
-                </p>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Input — never unmounts so keyboard stays open on mobile */}
+        <div className="px-2 md:px-4 pb-3 md:pb-4 shrink-0">
+          <div className="max-w-3xl mx-auto">
+            <InputBox
+              inputRef={inputRef}
+              value={input}
+              onChange={e => { setInput(e.target.value); autoResize(e); }}
+              onKeyDown={onKeyDown}
+              onSend={sendMessage}
+              sending={sending}
+              image={image}
+              onImage={setImage}
+              onFocusMobile={() => { const el = messagesRef.current; if (el) setTimeout(() => el.scrollTop = el.scrollHeight, 300); }}
+            />
+            <p className="hidden md:block text-center text-[12px] text-muted mt-2">
+              Enter to send · Shift+Enter for new line
+            </p>
+          </div>
+        </div>
       </div>
 
       {showSettings && <SettingsModal onClose={() => setShowSettings(false)}/>}
