@@ -15,16 +15,15 @@ async function fetchContext(name, appUrl, token) {
     });
     return { name, data: res.data };
   } catch (err) {
+    console.warn(`[context] ${name} (${appUrl}): ${err.message}`);
     return { name, error: err.message };
   }
 }
 
 function buildContextBlock(contexts) {
-  if (!contexts.length) return "";
-  const parts = contexts.map(c => {
-    if (c.error) return `[${c.name}: unavailable — ${c.error}]`;
-    return `=== ${c.name} ===\n${JSON.stringify(c.data, null, 2)}`;
-  });
+  const ok = contexts.filter(c => !c.error);
+  if (!ok.length) return "";
+  const parts = ok.map(c => `=== ${c.name} ===\n${JSON.stringify(c.data, null, 2)}`);
   return `\n\n--- CONTEXT FROM CONNECTED APPS ---\n${parts.join("\n\n")}\n--- END CONTEXT ---`;
 }
 
