@@ -1,13 +1,12 @@
 import { useState, useEffect } from "react";
-import { X, Trash2 } from "lucide-react";
+import { X, Plug, Bot, Trash2, Plus, Eye, EyeOff, RefreshCw, Check } from "lucide-react";
 import { integrationsApi, settingsApi } from "../api/client.js";
 
-// ── Tab: Integrations ─────────────────────────────────────────────────────────
+// ── Integrations tab ──────────────────────────────────────────────────────────
 
 function IntegrationsTab() {
   const [list,    setList]    = useState([]);
   const [form,    setForm]    = useState({ name: "", app_url: "", token: "" });
-  const [editing, setEditing] = useState(null); // { id, name, app_url }
   const [saving,  setSaving]  = useState(false);
   const [error,   setError]   = useState("");
 
@@ -26,7 +25,7 @@ function IntegrationsTab() {
       const res = await integrationsApi.create(form);
       setList(p => [...p, res.data]);
       setForm({ name: "", app_url: "", token: "" });
-    } catch (e) { setError(e.response?.data?.error || "Could not add integration"); }
+    } catch (e) { setError(e.response?.data?.error || "Could not add"); }
     finally { setSaving(false); }
   }
 
@@ -42,73 +41,85 @@ function IntegrationsTab() {
   }
 
   return (
-    <div className="space-y-5">
-      <p className="text-gray-400 text-sm">
-        Add any app that exposes <code className="bg-black/30 px-1.5 py-0.5 rounded text-xs text-accent">GET /api/context</code> with a Bearer token.
-        MyGPT will call it before every reply.
-      </p>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-[15px] font-semibold text-white mb-1">Connected apps</h3>
+        <p className="text-[13px] text-muted leading-relaxed">
+          Any app exposing <code className="bg-white/8 text-accent px-1.5 py-0.5 rounded text-[12px] font-mono">GET /api/context</code> with a Bearer token will be used as context before every reply.
+        </p>
+      </div>
+
+      {/* Existing integrations */}
+      {list.length > 0 && (
+        <div className="space-y-2">
+          {list.map(i => (
+            <div key={i.id} className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-3 border border-white/8">
+              <div className="w-8 h-8 rounded-lg bg-white/8 flex items-center justify-center shrink-0">
+                <Plug size={15} className="text-accent" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[14px] font-medium text-white truncate">{i.name}</p>
+                <p className="text-[12px] text-muted truncate font-mono">{i.app_url}</p>
+              </div>
+              <button
+                onClick={() => handleToggle(i.id, i.enabled)}
+                className={`text-[11px] px-2.5 py-1 rounded-full font-semibold transition shrink-0 ${
+                  i.enabled ? "bg-accent/20 text-accent" : "bg-white/8 text-muted"
+                }`}
+              >
+                {i.enabled ? "ON" : "OFF"}
+              </button>
+              <button onClick={() => handleDelete(i.id)}
+                className="text-muted hover:text-red-400 transition p-1 rounded shrink-0">
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Add form */}
-      <form onSubmit={handleAdd} className="bg-main rounded-xl border border-border p-4 space-y-3">
-        <h3 className="text-sm font-semibold text-white">Add integration</h3>
-        <input value={form.name} onChange={e => setForm(f => ({...f, name: e.target.value}))}
+      <form onSubmit={handleAdd} className="space-y-3 border-t border-white/8 pt-5">
+        <h4 className="text-[13px] font-semibold text-[#c5c5d2]">Add integration</h4>
+        <input
+          value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
           placeholder="Name  (e.g. Sprint Therapy)"
-          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-accent" />
-        <input value={form.app_url} onChange={e => setForm(f => ({...f, app_url: e.target.value}))}
-          placeholder="Base URL  (e.g. http://206.81.28.139:4000)"
-          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-accent" />
-        <input value={form.token} onChange={e => setForm(f => ({...f, token: e.target.value}))}
-          placeholder="API Token  (generate it in that app)"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-muted focus:outline-none focus:border-accent/50 transition"
+        />
+        <input
+          value={form.app_url} onChange={e => setForm(f => ({ ...f, app_url: e.target.value }))}
+          placeholder="Base URL  (e.g. http://host:4000)"
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-muted focus:outline-none focus:border-accent/50 transition font-mono"
+        />
+        <input
+          value={form.token} onChange={e => setForm(f => ({ ...f, token: e.target.value }))}
+          placeholder="API Token"
           type="password"
-          className="w-full bg-input border border-border rounded-lg px-3 py-2 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-accent" />
-        {error && <p className="text-red-400 text-xs">{error}</p>}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] text-white placeholder-muted focus:outline-none focus:border-accent/50 transition"
+        />
+        {error && <p className="text-red-400 text-[13px]">{error}</p>}
         <button type="submit" disabled={saving}
-          className="w-full py-2 bg-accent hover:bg-accent/80 text-white text-sm font-semibold rounded-lg transition disabled:opacity-50">
-          {saving ? "Adding…" : "+ Add"}
+          className="flex items-center gap-2 bg-accent hover:bg-accent/80 text-white text-[14px] font-semibold px-4 py-2.5 rounded-xl transition disabled:opacity-50">
+          <Plus size={15} />{saving ? "Adding…" : "Add integration"}
         </button>
       </form>
-
-      {/* List */}
-      <div className="space-y-2">
-        {list.length === 0 && (
-          <p className="text-gray-600 text-sm text-center py-4">No integrations yet</p>
-        )}
-        {list.map(i => (
-          <div key={i.id} className="flex items-center gap-3 bg-main border border-border rounded-xl px-4 py-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-white truncate">{i.name}</p>
-              <p className="text-xs text-gray-500 truncate font-mono">{i.app_url}</p>
-            </div>
-            {/* Toggle enabled */}
-            <button onClick={() => handleToggle(i.id, i.enabled)}
-              className={`text-xs px-2.5 py-1 rounded-full font-semibold transition shrink-0 ${
-                i.enabled
-                  ? "bg-accent/20 text-accent hover:bg-accent/30"
-                  : "bg-gray-700 text-gray-400 hover:bg-gray-600"
-              }`}>
-              {i.enabled ? "ON" : "OFF"}
-            </button>
-            <button onClick={() => handleDelete(i.id)}
-              className="text-gray-500 hover:text-red-400 transition shrink-0 p-1 rounded"><Trash2 size={14}/></button>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
 
-// ── Tab: AI Settings ──────────────────────────────────────────────────────────
+// ── AI Settings tab ───────────────────────────────────────────────────────────
 
 function AISettingsTab() {
-  const [keyHint,   setKeyHint]   = useState("");
-  const [keySet,    setKeySet]    = useState(false);
-  const [newKey,    setNewKey]    = useState("");
-  const [model,     setModel]     = useState("gpt-4o");
-  const [models,    setModels]    = useState([]);
-  const [loadingM,  setLoadingM]  = useState(false);
-  const [saving,    setSaving]    = useState(false);
-  const [saved,     setSaved]     = useState(false);
-  const [error,     setError]     = useState("");
+  const [keyHint,  setKeyHint]  = useState("");
+  const [keySet,   setKeySet]   = useState(false);
+  const [newKey,   setNewKey]   = useState("");
+  const [showKey,  setShowKey]  = useState(false);
+  const [model,    setModel]    = useState("gpt-5.4-mini");
+  const [models,   setModels]   = useState([]);
+  const [loadingM, setLoadingM] = useState(false);
+  const [saving,   setSaving]   = useState(false);
+  const [saved,    setSaved]    = useState(false);
+  const [error,    setError]    = useState("");
 
   useEffect(() => { loadSettings(); }, []);
 
@@ -117,7 +128,7 @@ function AISettingsTab() {
       const res = await settingsApi.get();
       setKeySet(res.data.openai_api_key_set);
       setKeyHint(res.data.openai_api_key_hint || "");
-      setModel(res.data.openai_model || "gpt-4o");
+      setModel(res.data.openai_model || "gpt-5.4-mini");
     } catch {}
     loadModels();
   }
@@ -127,7 +138,7 @@ function AISettingsTab() {
     try {
       const res = await settingsApi.getModels();
       setModels(res.data.models || []);
-    } catch { setModels(["gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-4","gpt-3.5-turbo"]); }
+    } catch { setModels(["gpt-5.4-mini","gpt-4o","gpt-4o-mini","gpt-4-turbo","gpt-3.5-turbo"]); }
     finally { setLoadingM(false); }
   }
 
@@ -140,7 +151,6 @@ function AISettingsTab() {
       await settingsApi.save(payload);
       setSaved(true);
       if (newKey.trim()) { setNewKey(""); setKeySet(true); setKeyHint(newKey.slice(0,7)+"…"); }
-      // Reload models with new key
       loadModels();
       setTimeout(() => setSaved(false), 2500);
     } catch (e) { setError(e.response?.data?.error || "Could not save"); }
@@ -148,54 +158,62 @@ function AISettingsTab() {
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-5">
-      {/* OpenAI key */}
+    <form onSubmit={handleSave} className="space-y-6">
+      {/* API Key */}
       <div className="space-y-2">
-        <label className="block text-sm font-semibold text-white">OpenAI API Key</label>
-        {keySet && (
-          <p className="text-xs text-gray-500">
-            Current key: <code className="text-gray-400">{keyHint}</code>
-            <span className="ml-2 text-accent">✓ set</span>
-          </p>
-        )}
-        <input
-          type="password"
-          value={newKey}
-          onChange={e => setNewKey(e.target.value)}
-          placeholder={keySet ? "Paste new key to replace…" : "sk-…"}
-          className="w-full bg-input border border-border rounded-xl px-4 py-3 text-white text-sm placeholder-gray-600 focus:outline-none focus:border-accent"
-        />
-        <p className="text-xs text-gray-600">
-          Get your key at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-accent underline">platform.openai.com/api-keys</a>
+        <div className="flex items-center justify-between">
+          <label className="text-[14px] font-semibold text-white">OpenAI API Key</label>
+          {keySet && (
+            <span className="text-[12px] text-accent flex items-center gap-1">
+              <Check size={12} /> Configured <span className="text-muted font-mono ml-1">{keyHint}</span>
+            </span>
+          )}
+        </div>
+        <div className="relative">
+          <input
+            type={showKey ? "text" : "password"}
+            value={newKey}
+            onChange={e => setNewKey(e.target.value)}
+            placeholder={keySet ? "Paste new key to replace…" : "sk-…"}
+            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 pr-10 text-[14px] text-white placeholder-muted focus:outline-none focus:border-accent/50 transition font-mono"
+          />
+          <button type="button" onClick={() => setShowKey(p => !p)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted hover:text-white transition">
+            {showKey ? <EyeOff size={15}/> : <Eye size={15}/>}
+          </button>
+        </div>
+        <p className="text-[12px] text-muted">
+          Get your key at{" "}
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-accent underline underline-offset-2">
+            platform.openai.com/api-keys
+          </a>
         </p>
       </div>
 
       {/* Model */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-semibold text-white">Model</label>
+          <label className="text-[14px] font-semibold text-white">Model</label>
           <button type="button" onClick={loadModels} disabled={loadingM}
-            className="text-xs text-accent hover:underline disabled:opacity-50">
-            {loadingM ? "Loading…" : "↻ Refresh"}
+            className="flex items-center gap-1 text-[12px] text-muted hover:text-white transition disabled:opacity-50">
+            <RefreshCw size={12} className={loadingM ? "animate-spin" : ""} />
+            {loadingM ? "Loading…" : "Refresh"}
           </button>
         </div>
         <select
-          value={model}
-          onChange={e => setModel(e.target.value)}
-          className="w-full bg-input border border-border rounded-xl px-4 py-3 text-white text-sm focus:outline-none focus:border-accent cursor-pointer"
+          value={model} onChange={e => setModel(e.target.value)}
+          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-[14px] text-white focus:outline-none focus:border-accent/50 transition cursor-pointer [color-scheme:dark]"
         >
-          {models.map(m => (
-            <option key={m} value={m}>{m}</option>
-          ))}
+          {models.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
-        <p className="text-xs text-gray-600">Models are fetched live from OpenAI using your key.</p>
+        <p className="text-[12px] text-muted">Models are fetched live from OpenAI using your key.</p>
       </div>
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
+      {error && <p className="text-red-400 text-[13px]">{error}</p>}
 
       <button type="submit" disabled={saving}
-        className="w-full py-3 bg-accent hover:bg-accent/80 text-white font-semibold rounded-xl transition disabled:opacity-50 text-sm">
-        {saving ? "Saving…" : saved ? "✅ Saved!" : "Save Settings"}
+        className="w-full py-2.5 bg-accent hover:bg-accent/80 text-white font-semibold rounded-xl transition disabled:opacity-50 text-[14px]">
+        {saving ? "Saving…" : saved ? "✓ Saved" : "Save changes"}
       </button>
     </form>
   );
@@ -203,36 +221,54 @@ function AISettingsTab() {
 
 // ── Main modal ────────────────────────────────────────────────────────────────
 
+const TABS = [
+  { key: "integrations", label: "Integrations", icon: Plug },
+  { key: "ai",           label: "AI Settings",  icon: Bot  },
+];
+
 export default function SettingsModal({ onClose }) {
   const [tab, setTab] = useState("integrations");
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-lg bg-input rounded-2xl border border-border shadow-2xl flex flex-col max-h-[90vh]">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div className="w-full max-w-xl bg-[#202123] rounded-2xl shadow-2xl border border-white/10 flex flex-col max-h-[88vh]">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-          <h2 className="text-white font-bold text-lg">⚙️ Settings</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-white transition p-1 rounded"><X size={18}/></button>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-white/8 shrink-0">
+          <h2 className="text-[17px] font-semibold text-white">Settings</h2>
+          <button onClick={onClose} className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8">
+            <X size={18}/>
+          </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-border shrink-0">
-          {[["integrations","🔌 Integrations"], ["ai","🤖 AI Settings"]].map(([key, label]) => (
-            <button key={key} onClick={() => setTab(key)}
-              className={`flex-1 py-3 text-sm font-semibold transition ${
-                tab === key ? "text-white border-b-2 border-accent" : "text-gray-500 hover:text-gray-300"
-              }`}>
-              {label}
-            </button>
-          ))}
+        <div className="flex flex-1 min-h-0">
+          {/* Left nav */}
+          <nav className="w-44 shrink-0 border-r border-white/8 p-2 space-y-0.5">
+            {TABS.map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] transition text-left ${
+                  tab === key
+                    ? "bg-white/10 text-white font-medium"
+                    : "text-muted hover:bg-white/6 hover:text-[#c5c5d2]"
+                }`}
+              >
+                <Icon size={15} className={tab === key ? "text-accent" : ""} />
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto px-6 py-5 min-w-0">
+            {tab === "integrations" ? <IntegrationsTab /> : <AISettingsTab />}
+          </div>
         </div>
 
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5">
-          {tab === "integrations" ? <IntegrationsTab /> : <AISettingsTab />}
-        </div>
       </div>
     </div>
   );
