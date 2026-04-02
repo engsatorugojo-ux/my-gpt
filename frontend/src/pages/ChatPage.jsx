@@ -291,7 +291,7 @@ export default function ChatPage({ user, onLogout }) {
             className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8">
             <PanelLeft size={18}/>
           </button>
-          <span className="text-[15px] font-semibold text-[#ececec] flex-1 ml-1">{activeConv?.title || "MyGPT"}</span>
+          <span className="text-[15px] font-semibold text-[#ececec] flex-1 ml-1">{conversations.find(c => c.id === activeId)?.title || "MyGPT"}</span>
           <button onClick={() => window.location.reload()}
             className="text-muted hover:text-white transition p-1.5 rounded-lg hover:bg-white/8"
             title="Reload">
