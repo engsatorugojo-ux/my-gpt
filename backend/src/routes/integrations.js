@@ -4,40 +4,52 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
+// GET /api/integrations
 router.get("/", requireAuth, async (req, res) => {
   const { rows } = await pool.query(
-    "SELECT id,app_name,app_url,enabled,created_at FROM api_integrations WHERE user_id=$1 ORDER BY app_name",
+    "SELECT id,name,app_url,enabled,created_at FROM api_integrations WHERE user_id=$1 ORDER BY created_at",
     [req.userId]
   );
   res.json(rows);
 });
 
-router.put("/:appName", requireAuth, async (req, res) => {
-  const { app_url, token, enabled } = req.body;
-  const { appName } = req.params;
+// POST /api/integrations
+router.post("/", requireAuth, async (req, res) => {
+  const { name, app_url, token } = req.body;
+  if (!name?.trim() || !app_url?.trim() || !token?.trim())
+    return res.status(400).json({ error: "name, app_url and token are required" });
   try {
-    const existing = await pool.query(
-      "SELECT id FROM api_integrations WHERE user_id=$1 AND app_name=$2", [req.userId, appName]
+    const { rows: [row] } = await pool.query(
+      "INSERT INTO api_integrations (user_id,name,app_url,token) VALUES ($1,$2,$3,$4) RETURNING id,name,app_url,enabled,created_at",
+      [req.userId, name.trim(), app_url.trim().replace(/\/$/, ""), token.trim()]
     );
-    if (existing.rows.length) {
-      const { rows: [row] } = await pool.query(
-        `UPDATE api_integrations SET app_url=$1, token=$2, enabled=$3
-         WHERE user_id=$4 AND app_name=$5 RETURNING id,app_name,app_url,enabled`,
-        [app_url, token, enabled ?? true, req.userId, appName]
-      );
-      res.json(row);
-    } else {
-      const { rows: [row] } = await pool.query(
-        "INSERT INTO api_integrations (user_id,app_name,app_url,token,enabled) VALUES ($1,$2,$3,$4,$5) RETURNING id,app_name,app_url,enabled",
-        [req.userId, appName, app_url, token, enabled ?? true]
-      );
-      res.status(201).json(row);
-    }
+    res.status(201).json(row);
   } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
 });
 
-router.delete("/:appName", requireAuth, async (req, res) => {
-  await pool.query("DELETE FROM api_integrations WHERE user_id=$1 AND app_name=$2", [req.userId, req.params.appName]);
+// PUT /api/integrations/:id
+router.put("/:id", requireAuth, async (req, res) => {
+  const { name, app_url, token, enabled } = req.body;
+  try {
+    const fields = []; const vals = [];
+    if (name    !== undefined) fields.push(`name=$${vals.push(name.trim())}`);
+    if (app_url !== undefined) fields.push(`app_url=$${vals.push(app_url.trim().replace(/\/$/, ""))}`);
+    if (token   !== undefined && token !== "") fields.push(`token=$${vals.push(token.trim())}`);
+    if (enabled !== undefined) fields.push(`enabled=$${vals.push(enabled)}`);
+    if (!fields.length) return res.json({ ok: true });
+    vals.push(req.params.id, req.userId);
+    const { rows } = await pool.query(
+      `UPDATE api_integrations SET ${fields.join(",")} WHERE id=$${vals.length-1} AND user_id=$${vals.length} RETURNING id,name,app_url,enabled,created_at`,
+      vals
+    );
+    if (!rows.length) return res.status(404).json({ error: "Not found" });
+    res.json(rows[0]);
+  } catch (err) { console.error(err); res.status(500).json({ error: "Server error" }); }
+});
+
+// DELETE /api/integrations/:id
+router.delete("/:id", requireAuth, async (req, res) => {
+  await pool.query("DELETE FROM api_integrations WHERE id=$1 AND user_id=$2", [req.params.id, req.userId]);
   res.json({ deleted: true });
 });
 

@@ -22,15 +22,23 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- API tokens for connecting to external apps
+-- Generic integrations: any external app with a /api/context endpoint
 CREATE TABLE IF NOT EXISTS api_integrations (
   id SERIAL PRIMARY KEY,
   user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  app_name VARCHAR(50) NOT NULL,  -- 'sprint-manager' | 'note-app' | 'binance-bots'
-  app_url VARCHAR(255) NOT NULL,
-  token TEXT NOT NULL,            -- stored as-is (user's API token for that app)
+  name VARCHAR(255) NOT NULL,       -- free label, e.g. "Sprint Therapy", "My Todo App"
+  app_url VARCHAR(255) NOT NULL,    -- base URL, e.g. http://host:4000
+  token TEXT NOT NULL,              -- API token for that app
   enabled BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Per-user AI settings
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  openai_api_key TEXT DEFAULT '',
+  openai_model VARCHAR(100) DEFAULT 'gpt-4o',
+  updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE OR REPLACE FUNCTION update_updated_at()
@@ -39,5 +47,7 @@ BEGIN NEW.updated_at = NOW(); RETURN NEW; END;
 $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER conversations_updated_at
-BEFORE UPDATE ON conversations
-FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+CREATE TRIGGER user_settings_updated_at
+BEFORE UPDATE ON user_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();

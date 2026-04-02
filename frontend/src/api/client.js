@@ -21,7 +21,13 @@ export const chatApi = {
   send: (convId, message) => api.post(`/api/chat/${convId}`, { message }),
 };
 export const integrationsApi = {
-  list:   ()            => api.get("/api/integrations"),
-  save:   (name, d)     => api.put(`/api/integrations/${name}`, d),
-  delete: name          => api.delete(`/api/integrations/${name}`),
+  list:   ()        => api.get("/api/integrations"),
+  create: d         => api.post("/api/integrations", d),
+  update: (id, d)   => api.put(`/api/integrations/${id}`, d),
+  delete: id        => api.delete(`/api/integrations/${id}`),
+};
+export const settingsApi = {
+  get:       ()  => api.get("/api/settings"),
+  save:      d   => api.put("/api/settings", d),
+  getModels: ()  => api.get("/api/settings/models"),
 };

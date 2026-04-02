@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { convsApi, chatApi } from "../api/client.js";
-import IntegrationsModal from "../components/IntegrationsModal.jsx";
+import SettingsModal from "../components/SettingsModal.jsx";
 
 function Message({ role, content }) {
   const isUser = role === "user";
@@ -37,7 +37,7 @@ export default function ChatPage({ user, onLogout }) {
   const [messages,      setMessages]      = useState([]);
   const [input,         setInput]         = useState("");
   const [sending,       setSending]       = useState(false);
-  const [showIntegrations, setShowIntegrations] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [sidebarOpen,  setSidebarOpen]    = useState(true);
   const bottomRef  = useRef(null);
   const inputRef   = useRef(null);
@@ -140,7 +140,7 @@ export default function ChatPage({ user, onLogout }) {
         <div className="p-3 border-t border-border space-y-1">
           <button onClick={() => setShowIntegrations(true)}
             className="w-full flex items-center gap-2 px-3 py-2 rounded-xl hover:bg-input transition text-sm text-gray-400 hover:text-white">
-            🔌 Integrations
+            ⚙️ Settings
           </button>
           <div className="flex items-center justify-between px-3 py-2">
             <span className="text-xs text-gray-500 truncate">{user.name}</span>
@@ -171,7 +171,7 @@ export default function ChatPage({ user, onLogout }) {
                 <div className="w-16 h-16 rounded-full bg-accent flex items-center justify-center text-3xl font-bold text-white mx-auto mb-4">M</div>
                 <h2 className="text-2xl font-bold text-white mb-2">How can I help you?</h2>
                 <p className="text-gray-400 text-sm">I have access to your Sprint Therapy, Notes and Binance data.</p>
-                <p className="text-gray-500 text-xs mt-1">Connect your apps via <button onClick={() => setShowIntegrations(true)} className="text-accent underline">Integrations</button>.</p>
+                <p className="text-gray-500 text-xs mt-1">Connect your apps and set your OpenAI key in <button onClick={() => setShowSettings(true)} className="text-accent underline">Settings</button>.</p>
               </div>
             )}
             {messages.map((m, i) => <Message key={m.id || i} role={m.role} content={m.content} />)}
@@ -216,7 +216,7 @@ export default function ChatPage({ user, onLogout }) {
         </div>
       </div>
 
-      {showIntegrations && <IntegrationsModal onClose={() => setShowIntegrations(false)} />}
+      {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </div>
   );
 }

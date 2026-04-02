@@ -6,36 +6,26 @@ import { requireAuth } from "../middleware/auth.js";
 
 const router = Router();
 
-// Fetch context from an external app
-async function fetchContext(appName, appUrl, token) {
-  const headers = { Authorization: `Bearer ${token}` };
-  const ctx = [];
+// Fetch context from any app that implements GET /api/context
+async function fetchContext(name, appUrl, token) {
   try {
-    if (appName === "sprint-manager") {
-      const now = new Date();
-      const [spRes, evRes] = await Promise.all([
-        axios.get(`${appUrl}/api/sprints`, { headers, params: { year: now.getFullYear(), month: now.getMonth() + 1 }, timeout: 5000 }),
-        axios.get(`${appUrl}/api/events`,  { headers, params: { year: now.getFullYear(), month: now.getMonth() + 1 }, timeout: 5000 }),
-      ]);
-      if (spRes.data.length) ctx.push(`SPRINT THERAPY — Sessions this month:\n${JSON.stringify(spRes.data, null, 2)}`);
-      if (evRes.data.length) ctx.push(`SPRINT THERAPY — Events this month:\n${JSON.stringify(evRes.data, null, 2)}`);
-    }
-    if (appName === "note-app") {
-      const res = await axios.get(`${appUrl}/api/notes`, { headers, timeout: 5000 });
-      if (res.data.length) ctx.push(`NOTES:\n${res.data.map(n => `[${n.title || "Untitled"}]\n${n.content}`).join("\n---\n")}`);
-    }
-    if (appName === "binance-bots") {
-      const [botsRes, portRes] = await Promise.all([
-        axios.get(`${appUrl}/api/bots`,      { headers, timeout: 5000 }),
-        axios.get(`${appUrl}/api/portfolio`, { headers, timeout: 5000 }),
-      ]);
-      if (botsRes.data?.bots?.length)  ctx.push(`BINANCE BOTS:\n${JSON.stringify(botsRes.data.bots, null, 2)}`);
-      if (portRes.data)                ctx.push(`BINANCE PORTFOLIO:\n${JSON.stringify(portRes.data, null, 2)}`);
-    }
+    const res = await axios.get(`${appUrl}/api/context`, {
+      headers: { Authorization: `Bearer ${token}` },
+      timeout: 6000,
+    });
+    return { name, data: res.data };
   } catch (err) {
-    ctx.push(`[${appName}: could not fetch data — ${err.message}]`);
+    return { name, error: err.message };
   }
-  return ctx.join("\n\n");
+}
+
+function buildContextBlock(contexts) {
+  if (!contexts.length) return "";
+  const parts = contexts.map(c => {
+    if (c.error) return `[${c.name}: unavailable — ${c.error}]`;
+    return `=== ${c.name} ===\n${JSON.stringify(c.data, null, 2)}`;
+  });
+  return `\n\n--- CONTEXT FROM CONNECTED APPS ---\n${parts.join("\n\n")}\n--- END CONTEXT ---`;
 }
 
 // POST /api/chat/:conversationId
@@ -44,7 +34,7 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
   const { message } = req.body;
   if (!message?.trim()) return res.status(400).json({ error: "message is required" });
 
-  // Verify conversation ownership
+  // Verify ownership
   const { rows: [conv] } = await pool.query(
     "SELECT * FROM conversations WHERE id=$1 AND user_id=$2", [conversationId, req.userId]
   );
@@ -56,71 +46,74 @@ router.post("/:conversationId", requireAuth, async (req, res) => {
     [conversationId, message]
   );
 
-  // Fetch integrations context
-  const { rows: integrations } = await pool.query(
-    "SELECT * FROM api_integrations WHERE user_id=$1 AND enabled=true", [req.userId]
+  // Load user's AI settings
+  const { rows: [settings] } = await pool.query(
+    "SELECT openai_api_key, openai_model FROM user_settings WHERE user_id=$1", [req.userId]
   );
+  const apiKey = settings?.openai_api_key || process.env.OPENAI_API_KEY || "";
+  const model  = settings?.openai_model   || process.env.OPENAI_MODEL  || "gpt-4o";
 
-  let contextBlock = "";
-  if (integrations.length) {
-    const contexts = await Promise.all(
-      integrations.map(i => fetchContext(i.app_name, i.app_url, i.token))
-    );
-    const filled = contexts.filter(Boolean);
-    if (filled.length) {
-      contextBlock = `\n\n--- CONTEXT FROM CONNECTED APPS ---\n${filled.join("\n\n")}\n--- END CONTEXT ---`;
-    }
-  }
+  // Fetch context from all enabled integrations in parallel
+  const { rows: integrations } = await pool.query(
+    "SELECT name, app_url, token FROM api_integrations WHERE user_id=$1 AND enabled=true",
+    [req.userId]
+  );
+  const contexts = integrations.length
+    ? await Promise.all(integrations.map(i => fetchContext(i.name, i.app_url, i.token)))
+    : [];
+
+  const contextBlock = buildContextBlock(contexts);
 
   // Fetch conversation history (last 20 messages)
   const { rows: history } = await pool.query(
     "SELECT role,content FROM messages WHERE conversation_id=$1 ORDER BY created_at DESC LIMIT 20",
     [conversationId]
   );
-  const historyMessages = history.reverse().slice(0, -1); // exclude the just-saved user message
+  const historyMessages = history.reverse().slice(0, -1);
 
-  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const systemPrompt = `You are a helpful personal AI assistant.${contextBlock ? " You have access to the user's personal data from their connected apps." : ""}
+Today is ${today}.${contextBlock}
 
-  const systemPrompt = `You are a helpful personal AI assistant. You have access to the user's personal data from their connected apps.${contextBlock}
+Answer in the same language the user writes in. Be concise and helpful.`;
 
-Answer questions naturally. When referencing data from the apps, be specific and helpful. Today is ${new Date().toLocaleDateString("en-GB", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.`;
+  if (!apiKey) {
+    const errMsg = "⚠️ No OpenAI API key configured. Go to **Settings → AI Settings** to add your key.";
+    await pool.query("INSERT INTO messages (conversation_id,role,content) VALUES ($1,'assistant',$2)", [conversationId, errMsg]);
+    return res.json({ reply: errMsg });
+  }
 
   try {
+    const openai = new OpenAI({ apiKey });
     const completion = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || "gpt-4o",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         ...historyMessages,
         { role: "user", content: message },
       ],
       max_tokens: 2000,
-      stream: false,
     });
 
     const reply = completion.choices[0].message.content;
-
-    // Save assistant reply
     await pool.query(
       "INSERT INTO messages (conversation_id,role,content) VALUES ($1,'assistant',$2)",
       [conversationId, reply]
     );
 
-    // Auto-update conversation title from first message
+    // Auto-title from first user message
     if (historyMessages.length === 0) {
-      const title = message.slice(0, 60) + (message.length > 60 ? "…" : "");
-      await pool.query("UPDATE conversations SET title=$1 WHERE id=$2", [title, conversationId]);
+      await pool.query(
+        "UPDATE conversations SET title=$1 WHERE id=$2",
+        [message.slice(0, 60) + (message.length > 60 ? "…" : ""), conversationId]
+      );
     }
-
-    res.json({ reply, conversationId });
+    res.json({ reply });
   } catch (err) {
     console.error("OpenAI error:", err.message);
-    // Save error as assistant message too
-    const errMsg = "Sorry, I couldn't get a response. Please check your OpenAI API key in the integrations settings.";
-    await pool.query(
-      "INSERT INTO messages (conversation_id,role,content) VALUES ($1,'assistant',$2)",
-      [conversationId, errMsg]
-    );
-    res.json({ reply: errMsg, conversationId });
+    const errMsg = `❌ OpenAI error: ${err.message}`;
+    await pool.query("INSERT INTO messages (conversation_id,role,content) VALUES ($1,'assistant',$2)", [conversationId, errMsg]);
+    res.json({ reply: errMsg });
   }
 });
 
