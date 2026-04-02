@@ -338,8 +338,22 @@ function fileToImage(file) {
     if (!file.type.startsWith("image/")) return reject(new Error("Not an image"));
     const reader = new FileReader();
     reader.onload = e => {
-      const dataUrl = e.target.result;
-      resolve({ base64: dataUrl.split(",")[1], mimeType: file.type, previewUrl: dataUrl });
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1280;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width > height) { height = Math.round(height * MAX / width); width = MAX; }
+          else                { width  = Math.round(width  * MAX / height); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        resolve({ base64: dataUrl.split(",")[1], mimeType: "image/jpeg", previewUrl: dataUrl });
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
